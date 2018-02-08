@@ -1,1 +1,1 @@
-# rocket-shop-plural
+# Learning javascript
