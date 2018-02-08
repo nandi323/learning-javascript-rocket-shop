@@ -1,75 +1,73 @@
-var Emitter = require("events").EventEmitter;
-var util = require("util");
+var async = require("async");
+var assert = require("assert");
 
 var ReviewProcess = function(args)
 {
+    assert(args.application, "Need an application");
+    var app = args.application;
     var callback;
     
-    this.ensureAppValid = function(app)
+    this.ensureAppValid = function(next)
     {
         if(app.isValid())
         {
-           this.emit("validated", app);
+           next(null, true);
         }
         
         else
         {
-            this.emit("invalid", app.validationMessage());
-        }
-    }
+            next(app.validationMessage(),null);
+        };
+    };
         
-    this.findNextMission = function(app)
+    this.findNextMission = function(next)
     {
-        app.mission = { 
+        var mission = { 
             commander : null,
             pilot : null,
             MAVPilot : null,
             passangers : []    
             };
-        this.emit("mission-selected", app);
-    }
+        next(null, mission);
+    };
     
-    this.roleIsAvailable = function(app)
+    this.roleIsAvailable = function(next)
     {
-        this.emit("role-available", app);
-    }
+        next(null, true);
+    };
     
-    this.ensureRoleCompatible = function(app)
+    this.ensureRoleCompatible = function(next)
     {
-        this.emit("role-compatible", app);
-    }
+        next(null, true);
+    };
     
-    this.acceptApplication = function(app)
+    this.approveApplication = function(next)
     {
-        callback( null, {
-            success : true,
-            message : "Welcome to the program!"
-        });
-    }
+        next(null, true);
+    };
 
-    this.denyApplication = function(message)
+    this.processApplication = function(next)
     {
-        callback(null, {
-            success : false,
-            message : message
-        });    
-    }   
-    
-    this.processApplication = function(app, next)
-    {
-        callback = next;
-        this.emit("application-received", app);
-    }
-    
-    this.on("application-received", this.ensureAppValid);
-    this.on("validated", this.findNextMission);
-    this.on("mission-selected", this.roleIsAvailable);
-    this.on("role-available", this.ensureRoleCompatible);
-    this.on("role-compatible", this.acceptApplication);
-    
-    this.on("invalid", this.denyApplication);
+        async.series({
+            validated : this.ensureAppValid,
+            mission : this.findNextMission,
+            roleAvailable : this.roleIsAvailable,
+            roleCompatible : this.ensureRoleCompatible,
+            success : this.approveApplication
+        }, function(err, result){
+            if(err)
+            {
+                result.message = err;
+                next(null, result);
+            }
+            else
+            {
+                result.message = "Enjoy :)";   
+                next(null, result);
+            }
+        });
+    };
         
 };  
 
-util.inherits(ReviewProcess, Emitter);
 module.exports = ReviewProcess;
